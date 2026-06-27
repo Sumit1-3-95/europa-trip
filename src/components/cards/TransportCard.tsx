@@ -1,85 +1,32 @@
 import { Plane, Train, Ship, Bus, ArrowRight } from "lucide-react";
 import type { Transport } from "@/data/tripData";
 
-const icons = {
-  flight: Plane,
-  train: Train,
-  ferry: Ship,
-  bus: Bus,
-  taxi: Bus,
-  tram: Train,
-  "water-bus": Ship,
-};
+const ICONS = { flight: Plane, train: Train, ferry: Ship, bus: Bus, transfer: Bus } as const;
 
-const labels = {
-  flight: "Flight",
-  train: "Train",
-  ferry: "Ferry",
-  bus: "Bus",
-  taxi: "Taxi",
-  tram: "Tram",
-  "water-bus": "Water bus",
-};
-
-interface Props {
-  transport: Transport;
-}
-
-export default function TransportCard({ transport }: Props) {
-  const Icon = icons[transport.type];
-  const label = labels[transport.type];
-
+export default function TransportCard({ transport: t }: { transport: Transport }) {
+  const Icon = ICONS[t.type as keyof typeof ICONS] ?? Bus;
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center">
-          <Icon size={16} strokeWidth={1.5} className="text-gray-600" />
-        </div>
-        <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">{label}</span>
-        {transport.operator && (
-          <span className="ml-auto text-xs text-gray-400">{transport.operator}</span>
-        )}
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3.5 flex items-center gap-4">
+      <div className="w-9 h-9 bg-gray-50 rounded-xl flex items-center justify-center flex-shrink-0">
+        <Icon size={16} strokeWidth={1.5} className="text-gray-500" />
       </div>
-
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-gray-900">{transport.from}</p>
-          {transport.departureTime && (
-            <p className="text-lg font-medium text-gray-900 mt-0.5">{transport.departureTime}</p>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 text-[14px] font-medium text-gray-900">
+          <span className="truncate">{t.from}</span>
+          <ArrowRight size={12} strokeWidth={1.5} className="text-gray-300 flex-shrink-0" />
+          <span className="truncate">{t.to}</span>
+        </div>
+        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+          {t.departureTime && (
+            <span className="text-[12px] text-gray-400">{t.departureTime}{t.arrivalTime ? ` – ${t.arrivalTime}` : ""}</span>
+          )}
+          {t.operator && <span className="text-[12px] text-gray-300">· {t.operator}</span>}
+          {t.bookingRef && (
+            <span className="text-[11px] bg-gray-50 text-gray-400 px-2 py-0.5 rounded-full font-mono">{t.bookingRef}</span>
           )}
         </div>
-        <div className="flex flex-col items-center gap-1">
-          <ArrowRight size={16} strokeWidth={1.5} className="text-gray-300" />
-          {transport.duration && (
-            <span className="text-[10px] text-gray-400">{transport.duration}</span>
-          )}
-        </div>
-        <div className="flex-1 text-right">
-          <p className="text-sm font-medium text-gray-900">{transport.to}</p>
-          {transport.arrivalTime && (
-            <p className="text-lg font-medium text-gray-900 mt-0.5">{transport.arrivalTime}</p>
-          )}
-        </div>
+        {t.notes && <p className="text-[12px] text-gray-400 mt-1 leading-snug">{t.notes}</p>}
       </div>
-
-      {(transport.flightNumber || transport.trainNumber || transport.bookingRef) && (
-        <div className="flex gap-3 mt-3 pt-3 border-t border-gray-50">
-          {(transport.flightNumber || transport.trainNumber) && (
-            <span className="text-xs text-gray-500">
-              {transport.flightNumber ?? transport.trainNumber}
-            </span>
-          )}
-          {transport.bookingRef && (
-            <span className="text-xs text-gray-500 ml-auto">
-              Ref: <span className="font-medium text-gray-700">{transport.bookingRef}</span>
-            </span>
-          )}
-        </div>
-      )}
-
-      {transport.notes && (
-        <p className="text-xs text-gray-400 mt-2">{transport.notes}</p>
-      )}
     </div>
   );
 }

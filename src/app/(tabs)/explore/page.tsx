@@ -48,45 +48,40 @@ export default function ExplorePage() {
   ];
 
   return (
-    <div className="min-h-full bg-gray-50">
+    <div className="min-h-full bg-[#f8f8f8]">
       {/* Header */}
       <div className="px-5 pt-12 pb-4 bg-white border-b border-gray-100">
         <h1 className="text-xl font-medium text-gray-900">Explore</h1>
         <p className="text-xs text-gray-400 mt-0.5">{currentDay.city} · {currentDay.dateLabel}</p>
       </div>
 
-      {/* Trivia banner — always visible */}
+      {/* Trivia banner */}
       <div className="mx-4 mt-4 rounded-2xl p-4 flex gap-3" style={{ backgroundColor: theme.bg }}>
         <span className="text-2xl flex-shrink-0">{trivia.emoji}</span>
         <div>
           <p className="text-[10px] uppercase tracking-wide font-medium mb-1" style={{ color: theme.accentText }}>
             Did you know · {currentDay.city}
           </p>
-          <p className="text-sm text-gray-700 leading-relaxed">{trivia.fact}</p>
+          <p className="text-[13px] text-gray-700 leading-relaxed">{trivia.fact}</p>
         </div>
       </div>
 
       {/* Tool grid */}
-      <div className="px-4 mt-4 grid grid-cols-2 gap-3">
-        {tools.map((tool) => (
-          <button
-            key={tool.id}
-            onClick={() => setActiveTool(activeTool === tool.id ? null : tool.id)}
-            className={`rounded-2xl p-4 text-left border transition-all ${
-              activeTool === tool.id
-                ? "bg-gray-900 border-gray-900"
-                : "bg-white border-gray-100 shadow-sm"
-            }`}
-          >
-            <div className={activeTool === tool.id ? "text-white" : "text-gray-600"}>{tool.icon}</div>
-            <p className={`text-sm font-medium mt-3 ${activeTool === tool.id ? "text-white" : "text-gray-900"}`}>
-              {tool.label}
-            </p>
-            <p className={`text-xs mt-0.5 ${activeTool === tool.id ? "text-white/60" : "text-gray-400"}`}>
-              {tool.preview}
-            </p>
-          </button>
-        ))}
+      <div className="px-4 mt-4 grid grid-cols-2 gap-2.5">
+        {tools.map((tool) => {
+          const active = activeTool === tool.id;
+          return (
+            <button key={tool.id}
+              onClick={() => setActiveTool(active ? null : tool.id)}
+              className={`rounded-2xl p-4 text-left border transition-all active:scale-[0.98] ${
+                active ? "bg-gray-900 border-gray-900" : "bg-white border-gray-100 shadow-sm"
+              }`}>
+              <div className={active ? "text-white/70" : "text-gray-400"}>{tool.icon}</div>
+              <p className={`text-[14px] font-medium mt-3 ${active ? "text-white" : "text-gray-900"}`}>{tool.label}</p>
+              <p className={`text-[12px] mt-0.5 ${active ? "text-white/50" : "text-gray-400"}`}>{tool.preview}</p>
+            </button>
+          );
+        })}
       </div>
 
       {/* Expanded tool panel */}

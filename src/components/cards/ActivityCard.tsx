@@ -1,47 +1,61 @@
-import { Ticket, Users, Accessibility } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import PhotoSlot from "@/components/ui/PhotoSlot";
 import type { Activity } from "@/data/tripData";
 
-interface Props {
+const GRADIENTS = [
+  "linear-gradient(135deg, #e8f0fe 0%, #c5d8fd 100%)",
+  "linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%)",
+  "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)",
+  "linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)",
+  "linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)",
+  "linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%)",
+];
+
+export default function ActivityCard({
+  activity,
+  index,
+  dayNumber,
+  photoUrl,
+}: {
   activity: Activity;
   index: number;
-}
+  dayNumber: number;
+  photoUrl?: string | null;
+}) {
+  const [url, setUrl] = useState<string | null>(photoUrl ?? null);
 
-export default function ActivityCard({ activity, index }: Props) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1">
+    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+      <PhotoSlot
+        url={url}
+        alt={activity.title}
+        className="h-48 w-full"
+        slotKey={`activity-${dayNumber}-${index}`}
+        gradient={GRADIENTS[index % GRADIENTS.length]}
+        onUpdate={setUrl}
+      />
+      <div className="px-4 py-3.5">
+        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
           {activity.time && (
-            <p className="text-xs text-gray-400 mb-1">{activity.time}</p>
+            <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{activity.time}</span>
           )}
-          <p className="text-sm font-medium text-gray-900 leading-snug">{activity.title}</p>
-          <p className="text-sm text-gray-500 mt-1 leading-relaxed">{activity.description}</p>
-        </div>
-        <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <span className="text-xs font-medium text-gray-500">{index + 1}</span>
-        </div>
-      </div>
-
-      {(activity.kidFriendly || activity.elderlyFriendly || activity.ticketRequired) && (
-        <div className="flex gap-2 mt-3 flex-wrap">
           {activity.kidFriendly && (
-            <span className="inline-flex items-center gap-1 text-[11px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
-              <Users size={10} /> Kid-friendly
-            </span>
+            <span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded-full">Kids ✓</span>
           )}
-          {activity.elderlyFriendly && (
-            <span className="inline-flex items-center gap-1 text-[11px] bg-green-50 text-green-600 px-2 py-0.5 rounded-full">
-              <Accessibility size={10} /> Senior-friendly
-            </span>
+          {activity.seniorFriendly && (
+            <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Seniors ✓</span>
           )}
           {activity.ticketRequired && (
-            <span className="inline-flex items-center gap-1 text-[11px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">
-              <Ticket size={10} />
-              {activity.ticketBooked ? "Ticket booked" : "Ticket needed"}
-            </span>
+            <span className="text-[10px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">Ticket</span>
           )}
         </div>
-      )}
+        <h3 className="text-[15px] font-medium text-gray-900 leading-snug">{activity.title}</h3>
+        {activity.description && (
+          <p className="text-[13px] text-gray-400 mt-1 leading-relaxed line-clamp-2">{activity.description}</p>
+        )}
+      </div>
     </div>
   );
 }

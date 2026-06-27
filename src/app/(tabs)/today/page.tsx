@@ -1,141 +1,112 @@
+"use client";
+
+import { useState } from "react";
 import { DAYS, STAYS } from "@/data/tripData";
 import { getTheme } from "@/lib/theme";
-import TransportCard from "@/components/cards/TransportCard";
+import PhotoSlot from "@/components/ui/PhotoSlot";
 import ActivityCard from "@/components/cards/ActivityCard";
 import StayCard from "@/components/cards/StayCard";
-import AlertCard from "@/components/cards/AlertCard";
-import { Cloud, CheckSquare, Bell, DollarSign } from "lucide-react";
+import TransportCard from "@/components/cards/TransportCard";
+import { AlertTriangle, Info, CheckCircle2 } from "lucide-react";
 
-// For dev: show Day 5 (Stockholm, Sweden). In production this becomes dynamic.
 const DEV_DAY = 5;
 
 export default function TodayPage() {
-  const day = DAYS.find((d) => d.day === DEV_DAY) ?? DAYS[0];
+  const day  = DAYS.find((d) => d.day === DEV_DAY) ?? DAYS[0];
   const stay = STAYS.find((s) => s.id === day.stayId);
   const theme = getTheme(day.country);
 
-  const currencyMap: Record<string, string> = {
-    Sweden: "SEK",
-    Denmark: "DKK",
-    Netherlands: "EUR",
-    Belgium: "EUR",
-    India: "INR",
-  };
-  const currency = currencyMap[day.country] ?? "EUR";
-
   return (
-    <div className="min-h-full">
-      {/* Hero header */}
-      <div
-        className="px-5 pt-12 pb-6"
-        style={{ backgroundColor: theme.bg }}
-      >
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-2xl">{theme.flag}</span>
-          <span className="text-xs text-gray-500 font-medium">Day {day.day} of 22</span>
-        </div>
-        <h1 className="text-2xl font-medium text-gray-900 mt-2">{day.city}</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{day.dateLabel} · {day.country}</p>
+    <div className="min-h-full bg-[#f8f8f8]">
 
-        {day.notes && (
-          <p className="text-sm text-gray-600 mt-3 leading-relaxed">{day.notes}</p>
-        )}
-
-        {/* Quick pills */}
-        <div className="flex gap-2 mt-4 flex-wrap">
-          <Pill icon={<Cloud size={12} />} label="Weather" />
-          <Pill icon={<CheckSquare size={12} />} label="Checklist" />
-          <Pill icon={<Bell size={12} />} label="Alerts" count={day.alerts?.length} />
-          <Pill icon={<DollarSign size={12} />} label={currency} />
-        </div>
-      </div>
-
-      {/* Timeline */}
-      <div className="px-4 py-4 space-y-3">
-
-        {/* Alerts first */}
-        {day.alerts?.map((alert, i) => (
-          <TimelineItem key={`alert-${i}`} time={null} dotColor={theme.dotColor}>
-            <AlertCard alert={alert} />
-          </TimelineItem>
-        ))}
-
-        {/* Transport */}
-        {day.transport?.map((t, i) => (
-          <TimelineItem key={`transport-${i}`} time={t.departureTime ?? null} dotColor={theme.dotColor}>
-            <TransportCard transport={t} />
-          </TimelineItem>
-        ))}
-
-        {/* Activities */}
-        {day.activities.map((activity, i) => (
-          <TimelineItem key={`activity-${i}`} time={activity.time ?? null} dotColor={theme.dotColor}>
-            <ActivityCard activity={activity} index={i} />
-          </TimelineItem>
-        ))}
-
-        {/* Stay */}
-        {stay && (
-          <TimelineItem time={null} dotColor={theme.dotColor} label="Tonight">
-            <StayCard stay={stay} />
-          </TimelineItem>
-        )}
-
-        <div className="h-4" />
-      </div>
-    </div>
-  );
-}
-
-function Pill({
-  icon,
-  label,
-  count,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  count?: number;
-}) {
-  return (
-    <div className="flex items-center gap-1.5 bg-white/70 backdrop-blur-sm rounded-full px-3 py-1.5 border border-white/50">
-      <span className="text-gray-500">{icon}</span>
-      <span className="text-xs text-gray-700">{label}</span>
-      {count != null && count > 0 && (
-        <span className="text-[10px] bg-red-100 text-red-600 rounded-full w-4 h-4 flex items-center justify-center font-medium">
-          {count}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function TimelineItem({
-  time,
-  dotColor,
-  label,
-  children,
-}: {
-  time: string | null;
-  dotColor: string;
-  label?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex gap-3">
-      {/* Left: time + dot */}
-      <div className="flex flex-col items-center w-14 flex-shrink-0">
-        <span className="text-[11px] text-gray-400 font-medium leading-none mt-1.5">
-          {time ?? label ?? ""}
-        </span>
-        <div
-          className="w-2.5 h-2.5 rounded-full mt-2 flex-shrink-0"
-          style={{ backgroundColor: dotColor }}
+      {/* ── Hero ─────────────────────────────────────────────── */}
+      <div className="relative h-64 w-full">
+        <PhotoSlot
+          url={null}
+          alt={day.city}
+          className="absolute inset-0"
+          slotKey={`hero-${day.day}`}
+          gradient={`linear-gradient(160deg, ${theme.bg} 0%, ${theme.accent}55 100%)`}
         />
-        <div className="w-px flex-1 bg-gray-100 mt-1" />
+        {/* Gradient overlay for text legibility */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+
+        {/* Top bar */}
+        <div className="absolute top-0 left-0 right-0 px-5 pt-12 flex items-center justify-between">
+          <span className="text-xs text-white/70 font-medium bg-black/20 backdrop-blur-sm px-3 py-1 rounded-full">
+            Day {day.day} of 22
+          </span>
+          <span className="text-xl">{theme.flag}</span>
+        </div>
+
+        {/* Bottom text */}
+        <div className="absolute bottom-0 left-0 right-0 px-5 pb-5">
+          <h1 className="text-2xl font-medium text-white">{day.city}</h1>
+          <p className="text-sm text-white/70 mt-0.5">{day.dateLabel} · {day.country}</p>
+        </div>
       </div>
 
-      {/* Right: card */}
-      <div className="flex-1 pb-2">{children}</div>
+      {/* ── Notes ─────────────────────────────────────────────── */}
+      {day.notes && (
+        <div className="px-4 pt-4">
+          <p className="text-[13px] text-gray-500 leading-relaxed">{day.notes}</p>
+        </div>
+      )}
+
+      {/* ── Alerts ─────────────────────────────────────────────── */}
+      {day.alerts && day.alerts.length > 0 && (
+        <div className="px-4 pt-4 space-y-2">
+          {day.alerts.map((alert, i) => {
+            const styles = {
+              warning: { bg: "bg-amber-50", border: "border-amber-100", text: "text-amber-700", icon: <AlertTriangle size={14} className="text-amber-500 flex-shrink-0" /> },
+              info:    { bg: "bg-blue-50",  border: "border-blue-100",  text: "text-blue-700",  icon: <Info size={14} className="text-blue-500 flex-shrink-0" /> },
+              success: { bg: "bg-green-50", border: "border-green-100", text: "text-green-700", icon: <CheckCircle2 size={14} className="text-green-500 flex-shrink-0" /> },
+            }[alert.type] ?? { bg: "bg-gray-50", border: "border-gray-100", text: "text-gray-700", icon: <Info size={14} className="text-gray-400 flex-shrink-0" /> };
+            return (
+              <div key={i} className={`flex items-start gap-2.5 ${styles.bg} border ${styles.border} rounded-xl px-3.5 py-3`}>
+                {styles.icon}
+                <p className={`text-[13px] leading-snug ${styles.text}`}>{alert.message}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Getting around ─────────────────────────────────────── */}
+      {day.transport && day.transport.length > 0 && (
+        <Section title="Getting around">
+          {day.transport.map((t, i) => (
+            <TransportCard key={i} transport={t} />
+          ))}
+        </Section>
+      )}
+
+      {/* ── Today's plan ───────────────────────────────────────── */}
+      {day.activities.length > 0 && (
+        <Section title="Today's plan">
+          {day.activities.map((activity, i) => (
+            <ActivityCard key={i} activity={activity} index={i} dayNumber={day.day} />
+          ))}
+        </Section>
+      )}
+
+      {/* ── Tonight ────────────────────────────────────────────── */}
+      {stay && (
+        <Section title="Tonight">
+          <StayCard stay={stay} dayNumber={day.day} />
+        </Section>
+      )}
+
+      <div className="h-8" />
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="px-4 pt-6">
+      <p className="text-[11px] font-medium text-gray-400 uppercase tracking-widest mb-3">{title}</p>
+      <div className="space-y-3">{children}</div>
     </div>
   );
 }

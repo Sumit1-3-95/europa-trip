@@ -1,289 +1,191 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { DAYS } from "@/data/tripData";
 import { getTheme } from "@/lib/theme";
-import { Camera, Plus, Type, X, Sun, Heart, Star, MapPin } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { Camera, Type, X, Loader2 } from "lucide-react";
 
-// Key moments pre-seeded for major events
 const KEY_MOMENTS = [
-  { dayNum: 1,  title: "Touchdown Stockholm ✈️",    emoji: "🇸🇪" },
-  { dayNum: 4,  title: "Vaxholm island day",         emoji: "⛵" },
-  { dayNum: 5,  title: "Skansen & Junibacken",       emoji: "🦌" },
-  { dayNum: 7,  title: "On to Malmö",                emoji: "🚂" },
-  { dayNum: 9,  title: "Copenhagen day trip",        emoji: "🇩🇰" },
-  { dayNum: 11, title: "Efteling theme park!",       emoji: "🎢" },
-  { dayNum: 13, title: "Rotterdam + Den Haag",       emoji: "🌷" },
-  { dayNum: 15, title: "Bruges — medieval city",     emoji: "🏰" },
-  { dayNum: 16, title: "Ghent wanders",              emoji: "🚲" },
-  { dayNum: 18, title: "Brussels & Grand-Place",     emoji: "🍫" },
-  { dayNum: 19, title: "Fly back to Stockholm",      emoji: "✈️" },
-  { dayNum: 21, title: "Last evening in Europe",     emoji: "🌅" },
-  { dayNum: 22, title: "Homeward bound",             emoji: "🇮🇳" },
+  { dayNum: 1,  title: "Touchdown Stockholm ✈️", emoji: "🇸🇪" },
+  { dayNum: 4,  title: "Vaxholm island day",      emoji: "⛵" },
+  { dayNum: 5,  title: "Skansen & Junibacken",    emoji: "🦌" },
+  { dayNum: 7,  title: "On to Malmö",             emoji: "🚂" },
+  { dayNum: 9,  title: "Copenhagen day trip",      emoji: "🇩🇰" },
+  { dayNum: 11, title: "Efteling theme park!",     emoji: "🎢" },
+  { dayNum: 13, title: "Rotterdam + Den Haag",     emoji: "🌷" },
+  { dayNum: 15, title: "Bruges — medieval city",   emoji: "🏰" },
+  { dayNum: 16, title: "Ghent wanders",            emoji: "🚲" },
+  { dayNum: 18, title: "Brussels & Grand-Place",   emoji: "🍫" },
+  { dayNum: 21, title: "Last evening in Europe",   emoji: "🌅" },
+  { dayNum: 22, title: "Homeward bound",           emoji: "🇮🇳" },
 ];
 
-const STICKERS = [
-  { id: "sun",    label: "Sun",     emoji: "☀️" },
-  { id: "heart",  label: "Heart",   emoji: "❤️" },
-  { id: "star",   label: "Star",    emoji: "⭐" },
-  { id: "camera", label: "Camera",  emoji: "📸" },
-  { id: "pin",    label: "Pin",     emoji: "📍" },
-];
+const STICKERS = ["☀️", "❤️", "⭐", "📸", "📍", "🎉", "🌊", "🍕"];
 
-type MemoryPost = {
-  id: string;
-  dayNum: number;
-  type: "text" | "placeholder";
-  content: string;
-  sticker?: string;
-};
+type Post = { id: string; dayNum: number; type: "photo" | "text" | "empty"; content: string; sticker?: string };
 
-// Build initial feed: key moments + empty slots
-function buildFeed(): MemoryPost[] {
-  const posts: MemoryPost[] = [];
-  const momentDays = new Set(KEY_MOMENTS.map((m) => m.dayNum));
-
-  for (const day of DAYS) {
+function buildFeed(): Post[] {
+  return DAYS.map((day) => {
     const moment = KEY_MOMENTS.find((m) => m.dayNum === day.day);
-    if (moment) {
-      posts.push({
-        id: `moment-${day.day}`,
-        dayNum: day.day,
-        type: "placeholder",
-        content: `${moment.emoji} ${moment.title}`,
-      });
-    } else if (day.day <= 10) {
-      // Show empty slots for first half to demonstrate the pattern
-      posts.push({
-        id: `slot-${day.day}`,
-        dayNum: day.day,
-        type: "placeholder",
-        content: "",
-      });
-    }
-  }
-  return posts;
+    return {
+      id: `slot-${day.day}`,
+      dayNum: day.day,
+      type: "empty",
+      content: moment ? `${moment.emoji} ${moment.title}` : day.city,
+    };
+  });
 }
 
 export default function VibesPage() {
-  const [posts, setPosts] = useState<MemoryPost[]>(buildFeed);
-  const [addingDay, setAddingDay] = useState<number | null>(null);
-  const [addType, setAddType] = useState<"text" | null>(null);
-  const [textInput, setTextInput] = useState("");
-  const [selectedSticker, setSelectedSticker] = useState<string | undefined>(undefined);
+  const [posts, setPosts] = useState<Post[]>(buildFeed);
+  const [composingDay, setComposingDay] = useState<number | null>(null);
+  const [text, setText] = useState("");
+  const [sticker, setSticker] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const submitText = (dayNum: number) => {
-    if (!textInput.trim()) return;
-    const newPost: MemoryPost = {
-      id: `user-${Date.now()}`,
-      dayNum,
-      type: "text",
-      content: textInput.trim(),
-      sticker: selectedSticker,
-    };
-    setPosts((prev) => {
-      // Insert after the slot for this day
-      const idx = prev.findIndex((p) => p.dayNum === dayNum);
-      const next = [...prev];
-      if (idx >= 0) next.splice(idx + 1, 0, newPost);
-      else next.push(newPost);
-      return next;
-    });
-    setTextInput("");
-    setSelectedSticker(undefined);
-    setAddingDay(null);
-    setAddType(null);
+  const day = DAYS[0];
+
+  const handlePhoto = async (file: File, dayNum: number) => {
+    setUploading(true);
+    const localUrl = URL.createObjectURL(file);
+    setPosts(prev => prev.map(p => p.id === `slot-${dayNum}`
+      ? { ...p, type: "photo", content: localUrl } : p));
+
+    const path = `vibe-${dayNum}-${Date.now()}.${file.name.split(".").pop()}`;
+    const { error } = await supabase.storage.from("card-photos").upload(path, file, { upsert: true });
+    if (!error) {
+      const { data } = supabase.storage.from("card-photos").getPublicUrl(path);
+      setPosts(prev => prev.map(p => p.id === `slot-${dayNum}`
+        ? { ...p, type: "photo", content: data.publicUrl } : p));
+    }
+    setUploading(false);
   };
 
-  // Group posts by day for day separators
-  const grouped: { dayNum: number; dayLabel: string; country: string; posts: MemoryPost[] }[] = [];
-  for (const post of posts) {
-    const day = DAYS.find((d) => d.day === post.dayNum);
-    if (!day) continue;
-    const last = grouped[grouped.length - 1];
-    if (last && last.dayNum === post.dayNum) {
-      last.posts.push(post);
-    } else {
-      grouped.push({ dayNum: post.dayNum, dayLabel: day.dateLabel, country: day.country, posts: [post] });
-    }
+  const saveText = (dayNum: number) => {
+    if (!text.trim()) return;
+    setPosts(prev => prev.map(p => p.id === `slot-${dayNum}`
+      ? { ...p, type: "text", content: text.trim(), sticker } : p));
+    setText(""); setSticker(""); setComposingDay(null);
+  };
+
+  // Group by country
+  const countryGroups: { country: string; days: typeof DAYS[0][] }[] = [];
+  for (const d of DAYS) {
+    const last = countryGroups[countryGroups.length - 1];
+    if (last?.country === d.country) last.days.push(d);
+    else countryGroups.push({ country: d.country, days: [d] });
   }
 
   return (
-    <div className="min-h-full bg-gray-50">
+    <div className="min-h-full bg-[#f8f8f8]">
       {/* Header */}
       <div className="px-5 pt-12 pb-4 bg-white border-b border-gray-100">
         <h1 className="text-xl font-medium text-gray-900">Vibes</h1>
-        <p className="text-xs text-gray-400 mt-0.5">Your family memory lane</p>
+        <p className="text-xs text-gray-400 mt-0.5">Your trip in photos & moments</p>
       </div>
 
-      <div className="px-4 py-4 space-y-1">
-        {grouped.map(({ dayNum, dayLabel, country, posts: dayPosts }) => {
-          const theme = getTheme(country as any);
+      <div className="px-4 pt-4 space-y-8 pb-6">
+        {countryGroups.map(({ country, days: groupDays }) => {
+          const theme = getTheme(country as Parameters<typeof getTheme>[0]);
           return (
-            <div key={dayNum}>
-              {/* Day separator */}
-              <div className="flex items-center gap-3 py-3">
-                <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: theme.bg }}>
-                  <span className="text-[9px] font-medium" style={{ color: theme.accentText }}>{dayNum}</span>
-                </div>
-                <span className="text-xs text-gray-400">{dayLabel}</span>
+            <div key={country}>
+              {/* Country header */}
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">{theme.flag}</span>
+                <span className="text-[13px] font-medium text-gray-700">{country}</span>
                 <div className="flex-1 h-px bg-gray-100" />
-                <span className="text-base">{theme.flag}</span>
               </div>
 
-              {/* Posts for this day */}
-              <div className="space-y-3 mb-1">
-                {dayPosts.map((post) => {
-                  if (post.type === "placeholder" && post.content) {
-                    return <KeyMomentCard key={post.id} post={post} theme={theme} />;
-                  }
-                  if (post.type === "placeholder" && !post.content) {
+              {/* Day cards grid */}
+              <div className="grid grid-cols-2 gap-2.5">
+                {groupDays.map((d) => {
+                  const post = posts.find(p => p.id === `slot-${d.day}`)!;
+                  const isComposing = composingDay === d.day;
+
+                  if (isComposing) {
                     return (
-                      <EmptySlotCard
-                        key={post.id}
-                        dayNum={dayNum}
-                        onAdd={() => { setAddingDay(dayNum); setAddType("text"); }}
-                      />
+                      <div key={d.day} className="col-span-2 bg-white rounded-2xl border border-gray-100 p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-[13px] font-medium text-gray-700">Day {d.day} · {d.city}</p>
+                          <button onClick={() => setComposingDay(null)}>
+                            <X size={16} className="text-gray-400" />
+                          </button>
+                        </div>
+                        <textarea
+                          autoFocus
+                          value={text}
+                          onChange={e => setText(e.target.value)}
+                          placeholder="Write something about this day…"
+                          className="w-full text-sm text-gray-800 placeholder-gray-300 outline-none resize-none leading-relaxed"
+                          rows={3}
+                        />
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
+                          <div className="flex gap-2">
+                            {STICKERS.map(s => (
+                              <button key={s} onClick={() => setSticker(s === sticker ? "" : s)}
+                                className={`text-lg transition-transform ${s === sticker ? "scale-125" : ""}`}>
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                          <button onClick={() => saveText(d.day)}
+                            className="text-xs font-medium text-white bg-gray-900 px-4 py-1.5 rounded-full">
+                            Save
+                          </button>
+                        </div>
+                      </div>
                     );
                   }
-                  if (post.type === "text") {
-                    return <TextMemoryCard key={post.id} post={post} />;
-                  }
-                  return null;
-                })}
 
-                {/* Add memory button (for key moment days too) */}
-                {addingDay === dayNum ? (
-                  <TextInputCard
-                    value={textInput}
-                    onChange={setTextInput}
-                    sticker={selectedSticker}
-                    onStickerChange={setSelectedSticker}
-                    onSubmit={() => submitText(dayNum)}
-                    onCancel={() => { setAddingDay(null); setAddType(null); setTextInput(""); }}
-                  />
-                ) : (
-                  <button
-                    onClick={() => { setAddingDay(dayNum); setAddType("text"); }}
-                    className="w-full flex items-center gap-2 text-xs text-gray-400 py-2 px-4 rounded-xl border border-dashed border-gray-200 hover:border-gray-300 transition-colors bg-white"
-                  >
-                    <Plus size={12} />
-                    Add a memory
-                  </button>
-                )}
+                  if (post.type === "photo") {
+                    return (
+                      <div key={d.day} className="relative rounded-2xl overflow-hidden aspect-square bg-gray-100">
+                        <img src={post.content} alt="" className="w-full h-full object-cover" />
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent px-2.5 pb-2 pt-6">
+                          <p className="text-[11px] text-white/80">Day {d.day}</p>
+                          <p className="text-[12px] text-white font-medium">{d.city}</p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (post.type === "text") {
+                    return (
+                      <div key={d.day} className="rounded-2xl bg-white border border-gray-100 p-3.5 aspect-square flex flex-col justify-between">
+                        <div>
+                          <p className="text-[11px] text-gray-400">Day {d.day} · {d.city}</p>
+                          {post.sticker && <span className="text-2xl mt-1 block">{post.sticker}</span>}
+                          <p className="text-[13px] text-gray-700 mt-1 leading-snug line-clamp-4">{post.content}</p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Empty slot
+                  return (
+                    <div key={d.day} className="rounded-2xl border border-dashed border-gray-200 aspect-square flex flex-col items-center justify-center gap-2 bg-white/50">
+                      <p className="text-[11px] text-gray-400 text-center px-2">{post.content}</p>
+                      <div className="flex gap-2">
+                        <input ref={fileRef} type="file" accept="image/*" className="hidden"
+                          onChange={e => { const f = e.target.files?.[0]; if (f) handlePhoto(f, d.day); }} />
+                        <button onClick={() => fileRef.current?.click()}
+                          className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center">
+                          {uploading ? <Loader2 size={13} className="animate-spin text-gray-400" /> : <Camera size={13} className="text-gray-400" />}
+                        </button>
+                        <button onClick={() => setComposingDay(d.day)}
+                          className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center">
+                          <Type size={13} className="text-gray-400" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );
         })}
-
-        <div className="h-4" />
-      </div>
-    </div>
-  );
-}
-
-function KeyMomentCard({ post, theme }: { post: MemoryPost; theme: any }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-      {/* Pastel image placeholder */}
-      <div
-        className="w-full h-44 flex flex-col items-center justify-center gap-2"
-        style={{ backgroundColor: theme.bg }}
-      >
-        <span className="text-4xl">{post.content.split(" ")[0]}</span>
-        <span className="text-sm font-medium" style={{ color: theme.accentText }}>
-          {post.content.split(" ").slice(1).join(" ")}
-        </span>
-      </div>
-      <div className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="w-1 h-1 rounded-full" style={{ backgroundColor: theme.dotColor }} />
-          <p className="text-xs text-gray-400">Key moment</p>
-          <Camera size={10} className="text-gray-300 ml-auto" />
-          <span className="text-xs text-gray-300">Add photo</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EmptySlotCard({ dayNum, onAdd }: { dayNum: number; onAdd: () => void }) {
-  return (
-    <button
-      onClick={onAdd}
-      className="w-full bg-white rounded-2xl border border-dashed border-gray-200 p-6 flex flex-col items-center gap-2 hover:border-gray-300 transition-colors"
-    >
-      <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center">
-        <Camera size={18} strokeWidth={1.5} className="text-gray-300" />
-      </div>
-      <p className="text-sm text-gray-400">Add your photo or memory here</p>
-    </button>
-  );
-}
-
-function TextMemoryCard({ post }: { post: MemoryPost }) {
-  const sticker = STICKERS.find((s) => s.id === post.sticker);
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-      <div className="flex items-start gap-2">
-        <p className="flex-1 text-sm text-gray-700 leading-relaxed">{post.content}</p>
-        {sticker && <span className="text-xl flex-shrink-0">{sticker.emoji}</span>}
-      </div>
-      <p className="text-[11px] text-gray-300 mt-2">Just now · You</p>
-    </div>
-  );
-}
-
-function TextInputCard({
-  value,
-  onChange,
-  sticker,
-  onStickerChange,
-  onSubmit,
-  onCancel,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  sticker: string | undefined;
-  onStickerChange: (v: string | undefined) => void;
-  onSubmit: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
-      <div className="flex items-start justify-between mb-3">
-        <span className="text-xs text-gray-500 font-medium">Add a memory</span>
-        <button onClick={onCancel}>
-          <X size={14} strokeWidth={1.5} className="text-gray-400" />
-        </button>
-      </div>
-
-      <textarea
-        autoFocus
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="What happened today?"
-        className="w-full text-sm text-gray-700 placeholder-gray-300 resize-none outline-none leading-relaxed min-h-[72px]"
-      />
-
-      {/* Sticker row */}
-      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50">
-        {STICKERS.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => onStickerChange(sticker === s.id ? undefined : s.id)}
-            className={`text-lg leading-none transition-opacity ${sticker && sticker !== s.id ? "opacity-30" : ""}`}
-          >
-            {s.emoji}
-          </button>
-        ))}
-        <button
-          onClick={onSubmit}
-          disabled={!value.trim()}
-          className="ml-auto text-xs font-medium px-3 py-1.5 rounded-full bg-gray-900 text-white disabled:opacity-30 transition-opacity"
-        >
-          Save
-        </button>
       </div>
     </div>
   );
